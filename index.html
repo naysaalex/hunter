@@ -559,6 +559,10 @@ footer{
           <div class="upload-hint">Parsed locally in your browser with pdf.js — the file itself is never uploaded anywhere.</div>
         </div>
         <div id="pdfStatus" class="pdf-status"></div>
+        <details id="rawDebugPanel" style="display:none; margin-top:10px;">
+          <summary style="cursor:pointer; font-family: var(--mono); font-size:11.5px; color: var(--text-dim);">Show raw extraction (for troubleshooting)</summary>
+          <pre id="rawDebugOutput" style="white-space:pre-wrap; font-size:11.5px; color: var(--text-dim); background: var(--bg-raised); border:1px solid var(--line); border-radius: var(--radius); padding:12px; margin-top:8px; max-height:260px; overflow:auto;"></pre>
+        </details>
       </div>
 
       <div id="reviewPanel" class="review-panel" style="display:none;">
@@ -950,6 +954,729 @@ const SPECIES_LIST = ["elk","deer","pronghorn","sheep","moose","goat","bear","tu
    ========================================================================== */
 
 const UNIT_DATA = {
+  // ---- California (real data, uploaded 2025 CDFW Apprentice Deer report) ----
+  // Cascading tier-based preference model — see engine.js cascadingPreferenceOdds().
+  // Note: "Apprentice" hunts are a specific mentorship category with their own
+  // point bank/cap (max 3 points), not representative of CA's general deer draw.
+  CA: {
+    deer: [
+  {
+    "unit": "Lake Sonoma Apprentice Either-Sex - General Methods (J1)",
+    "tiers": [
+      {
+        "label": "3 Points",
+        "applicants": 0
+      },
+      {
+        "label": "3 > 2 Points",
+        "applicants": 0
+      },
+      {
+        "label": "2 Points",
+        "applicants": 8
+      },
+      {
+        "label": "2 > 1 Points",
+        "applicants": 0
+      },
+      {
+        "label": "1 Point",
+        "applicants": 15
+      },
+      {
+        "label": "1 > 0 Points",
+        "applicants": 0
+      },
+      {
+        "label": "0 Point",
+        "applicants": 45
+      }
+    ],
+    "prefTagQuota": 13,
+    "randomTagQuota": 12,
+    "totalApplicants": 68,
+    "tags": 25,
+    "weapon": null,
+    "residency": "either",
+    "trend": "unknown",
+    "isSample": false,
+    "source": "user-upload-2025-CA-apprentice-deer"
+  },
+  {
+    "unit": "Tehama Wildlife Area Apprentice Buck - General Methods (J3)",
+    "tiers": [
+      {
+        "label": "3 Points",
+        "applicants": 45
+      },
+      {
+        "label": "3 > 2 Points",
+        "applicants": 0
+      },
+      {
+        "label": "2 Points",
+        "applicants": 67
+      },
+      {
+        "label": "2 > 1 Points",
+        "applicants": 0
+      },
+      {
+        "label": "1 Point",
+        "applicants": 118
+      },
+      {
+        "label": "1 > 0 Points",
+        "applicants": 6
+      },
+      {
+        "label": "0 Point",
+        "applicants": 157
+      }
+    ],
+    "prefTagQuota": 8,
+    "randomTagQuota": 7,
+    "totalApplicants": 393,
+    "tags": 15,
+    "weapon": null,
+    "residency": "either",
+    "trend": "unknown",
+    "isSample": false,
+    "source": "user-upload-2025-CA-apprentice-deer"
+  },
+  {
+    "unit": "Shasta-Trinity Apprentice Buck - General Methods (J4)",
+    "tiers": [
+      {
+        "label": "3 Points",
+        "applicants": 51
+      },
+      {
+        "label": "3 > 2 Points",
+        "applicants": 0
+      },
+      {
+        "label": "2 Points",
+        "applicants": 55
+      },
+      {
+        "label": "2 > 1 Points",
+        "applicants": 0
+      },
+      {
+        "label": "1 Point",
+        "applicants": 119
+      },
+      {
+        "label": "1 > 0 Points",
+        "applicants": 4
+      },
+      {
+        "label": "0 Point",
+        "applicants": 168
+      }
+    ],
+    "prefTagQuota": 8,
+    "randomTagQuota": 7,
+    "totalApplicants": 397,
+    "tags": 15,
+    "weapon": null,
+    "residency": "either",
+    "trend": "unknown",
+    "isSample": false,
+    "source": "user-upload-2025-CA-apprentice-deer"
+  },
+  {
+    "unit": "Daugherty Hill Wildlife Area Apprentice Either-Sex - General Methods (J8)",
+    "tiers": [
+      {
+        "label": "3 Points",
+        "applicants": 9
+      },
+      {
+        "label": "3 > 2 Points",
+        "applicants": 0
+      },
+      {
+        "label": "2 Points",
+        "applicants": 20
+      },
+      {
+        "label": "2 > 1 Points",
+        "applicants": 2
+      },
+      {
+        "label": "1 Point",
+        "applicants": 27
+      },
+      {
+        "label": "1 > 0 Points",
+        "applicants": 0
+      },
+      {
+        "label": "0 Point",
+        "applicants": 46
+      }
+    ],
+    "prefTagQuota": 8,
+    "randomTagQuota": 7,
+    "totalApplicants": 104,
+    "tags": 15,
+    "weapon": null,
+    "residency": "either",
+    "trend": "unknown",
+    "isSample": false,
+    "source": "user-upload-2025-CA-apprentice-deer"
+  },
+  {
+    "unit": "Little Dry Creek Apprentice Shotgun Either-Sex (J9)",
+    "tiers": [
+      {
+        "label": "3 Points",
+        "applicants": 0
+      },
+      {
+        "label": "3 > 2 Points",
+        "applicants": 0
+      },
+      {
+        "label": "2 Points",
+        "applicants": 2
+      },
+      {
+        "label": "2 > 1 Points",
+        "applicants": 0
+      },
+      {
+        "label": "1 Point",
+        "applicants": 5
+      },
+      {
+        "label": "1 > 0 Points",
+        "applicants": 2
+      },
+      {
+        "label": "0 Point",
+        "applicants": 16
+      }
+    ],
+    "prefTagQuota": 3,
+    "randomTagQuota": 2,
+    "totalApplicants": 25,
+    "tags": 5,
+    "weapon": null,
+    "residency": "either",
+    "trend": "unknown",
+    "isSample": false,
+    "source": "user-upload-2025-CA-apprentice-deer"
+  },
+  {
+    "unit": "Fort Hunter Liggett Apprentice Either-Sex - General Methods (J10)",
+    "tiers": [
+      {
+        "label": "3 Points",
+        "applicants": 18
+      },
+      {
+        "label": "3 > 2 Points",
+        "applicants": 0
+      },
+      {
+        "label": "2 Points",
+        "applicants": 23
+      },
+      {
+        "label": "2 > 1 Points",
+        "applicants": 2
+      },
+      {
+        "label": "1 Point",
+        "applicants": 51
+      },
+      {
+        "label": "1 > 0 Points",
+        "applicants": 2
+      },
+      {
+        "label": "0 Point",
+        "applicants": 74
+      }
+    ],
+    "prefTagQuota": 15,
+    "randomTagQuota": 15,
+    "totalApplicants": 170,
+    "tags": 30,
+    "weapon": null,
+    "residency": "either",
+    "trend": "unknown",
+    "isSample": false,
+    "source": "user-upload-2025-CA-apprentice-deer"
+  },
+  {
+    "unit": "San Bernardino Apprentice Either-Sex - General Methods (J11)",
+    "tiers": [
+      {
+        "label": "3 Points",
+        "applicants": 2
+      },
+      {
+        "label": "3 > 2 Points",
+        "applicants": 0
+      },
+      {
+        "label": "2 Points",
+        "applicants": 12
+      },
+      {
+        "label": "2 > 1 Points",
+        "applicants": 0
+      },
+      {
+        "label": "1 Point",
+        "applicants": 35
+      },
+      {
+        "label": "1 > 0 Points",
+        "applicants": 2
+      },
+      {
+        "label": "0 Point",
+        "applicants": 69
+      }
+    ],
+    "prefTagQuota": 20,
+    "randomTagQuota": 20,
+    "totalApplicants": 120,
+    "tags": 40,
+    "weapon": null,
+    "residency": "either",
+    "trend": "unknown",
+    "isSample": false,
+    "source": "user-upload-2025-CA-apprentice-deer"
+  },
+  {
+    "unit": "Round Valley Apprentice Buck - General Methods (J12)",
+    "tiers": [
+      {
+        "label": "3 Points",
+        "applicants": 82
+      },
+      {
+        "label": "3 > 2 Points",
+        "applicants": 2
+      },
+      {
+        "label": "2 Points",
+        "applicants": 104
+      },
+      {
+        "label": "2 > 1 Points",
+        "applicants": 0
+      },
+      {
+        "label": "1 Point",
+        "applicants": 146
+      },
+      {
+        "label": "1 > 0 Points",
+        "applicants": 2
+      },
+      {
+        "label": "0 Point",
+        "applicants": 194
+      }
+    ],
+    "prefTagQuota": 5,
+    "randomTagQuota": 5,
+    "totalApplicants": 530,
+    "tags": 10,
+    "weapon": null,
+    "residency": "either",
+    "trend": "unknown",
+    "isSample": false,
+    "source": "user-upload-2025-CA-apprentice-deer"
+  },
+  {
+    "unit": "Los Angeles Apprentice Either-Sex - General Methods (J13)",
+    "tiers": [
+      {
+        "label": "3 Points",
+        "applicants": 0
+      },
+      {
+        "label": "3 > 2 Points",
+        "applicants": 0
+      },
+      {
+        "label": "2 Points",
+        "applicants": 1
+      },
+      {
+        "label": "2 > 1 Points",
+        "applicants": 0
+      },
+      {
+        "label": "1 Point",
+        "applicants": 20
+      },
+      {
+        "label": "1 > 0 Points",
+        "applicants": 2
+      },
+      {
+        "label": "0 Point",
+        "applicants": 37
+      }
+    ],
+    "prefTagQuota": 20,
+    "randomTagQuota": 20,
+    "totalApplicants": 60,
+    "tags": 40,
+    "weapon": null,
+    "residency": "either",
+    "trend": "unknown",
+    "isSample": false,
+    "source": "user-upload-2025-CA-apprentice-deer"
+  },
+  {
+    "unit": "Riverside Apprentice Either-Sex - General Methods (J14)",
+    "tiers": [
+      {
+        "label": "3 Points",
+        "applicants": 0
+      },
+      {
+        "label": "3 > 2 Points",
+        "applicants": 0
+      },
+      {
+        "label": "2 Points",
+        "applicants": 0
+      },
+      {
+        "label": "2 > 1 Points",
+        "applicants": 0
+      },
+      {
+        "label": "1 Point",
+        "applicants": 10
+      },
+      {
+        "label": "1 > 0 Points",
+        "applicants": 0
+      },
+      {
+        "label": "0 Point",
+        "applicants": 25
+      }
+    ],
+    "prefTagQuota": 15,
+    "randomTagQuota": 15,
+    "totalApplicants": 35,
+    "tags": 30,
+    "weapon": null,
+    "residency": "either",
+    "trend": "unknown",
+    "isSample": false,
+    "source": "user-upload-2025-CA-apprentice-deer"
+  },
+  {
+    "unit": "Anderson Flat Apprentice Buck - General Methods (J15)",
+    "tiers": [
+      {
+        "label": "3 Points",
+        "applicants": 48
+      },
+      {
+        "label": "3 > 2 Points",
+        "applicants": 0
+      },
+      {
+        "label": "2 Points",
+        "applicants": 67
+      },
+      {
+        "label": "2 > 1 Points",
+        "applicants": 2
+      },
+      {
+        "label": "1 Point",
+        "applicants": 92
+      },
+      {
+        "label": "1 > 0 Points",
+        "applicants": 2
+      },
+      {
+        "label": "0 Point",
+        "applicants": 95
+      }
+    ],
+    "prefTagQuota": 5,
+    "randomTagQuota": 5,
+    "totalApplicants": 306,
+    "tags": 10,
+    "weapon": null,
+    "residency": "either",
+    "trend": "unknown",
+    "isSample": false,
+    "source": "user-upload-2025-CA-apprentice-deer"
+  },
+  {
+    "unit": "Bucks Mountain-Nevada City Apprentice Either-Sex - General Methods (J16)",
+    "tiers": [
+      {
+        "label": "3 Points",
+        "applicants": 0
+      },
+      {
+        "label": "3 > 2 Points",
+        "applicants": 0
+      },
+      {
+        "label": "2 Points",
+        "applicants": 2
+      },
+      {
+        "label": "2 > 1 Points",
+        "applicants": 0
+      },
+      {
+        "label": "1 Point",
+        "applicants": 17
+      },
+      {
+        "label": "1 > 0 Points",
+        "applicants": 4
+      },
+      {
+        "label": "0 Point",
+        "applicants": 61
+      }
+    ],
+    "prefTagQuota": 38,
+    "randomTagQuota": 37,
+    "totalApplicants": 84,
+    "tags": 75,
+    "weapon": null,
+    "residency": "either",
+    "trend": "unknown",
+    "isSample": false,
+    "source": "user-upload-2025-CA-apprentice-deer"
+  },
+  {
+    "unit": "Blue Canyon Apprentice Either-Sex - General Methods (J17)",
+    "tiers": [
+      {
+        "label": "3 Points",
+        "applicants": 0
+      },
+      {
+        "label": "3 > 2 Points",
+        "applicants": 0
+      },
+      {
+        "label": "2 Points",
+        "applicants": 1
+      },
+      {
+        "label": "2 > 1 Points",
+        "applicants": 0
+      },
+      {
+        "label": "1 Point",
+        "applicants": 3
+      },
+      {
+        "label": "1 > 0 Points",
+        "applicants": 4
+      },
+      {
+        "label": "0 Point",
+        "applicants": 17
+      }
+    ],
+    "prefTagQuota": 13,
+    "randomTagQuota": 12,
+    "totalApplicants": 25,
+    "tags": 25,
+    "weapon": null,
+    "residency": "either",
+    "trend": "unknown",
+    "isSample": false,
+    "source": "user-upload-2025-CA-apprentice-deer"
+  },
+  {
+    "unit": "Pacific - Grizzly Flat Apprentice Either-Sex - General Methods (J18)",
+    "tiers": [
+      {
+        "label": "3 Points",
+        "applicants": 1
+      },
+      {
+        "label": "3 > 2 Points",
+        "applicants": 0
+      },
+      {
+        "label": "2 Points",
+        "applicants": 6
+      },
+      {
+        "label": "2 > 1 Points",
+        "applicants": 0
+      },
+      {
+        "label": "1 Point",
+        "applicants": 26
+      },
+      {
+        "label": "1 > 0 Points",
+        "applicants": 0
+      },
+      {
+        "label": "0 Point",
+        "applicants": 69
+      }
+    ],
+    "prefTagQuota": 38,
+    "randomTagQuota": 37,
+    "totalApplicants": 102,
+    "tags": 75,
+    "weapon": null,
+    "residency": "either",
+    "trend": "unknown",
+    "isSample": false,
+    "source": "user-upload-2025-CA-apprentice-deer"
+  },
+  {
+    "unit": "Zone X7A Apprentice Either-Sex - General Methods (J19)",
+    "tiers": [
+      {
+        "label": "3 Points",
+        "applicants": 1
+      },
+      {
+        "label": "3 > 2 Points",
+        "applicants": 0
+      },
+      {
+        "label": "2 Points",
+        "applicants": 8
+      },
+      {
+        "label": "2 > 1 Points",
+        "applicants": 0
+      },
+      {
+        "label": "1 Point",
+        "applicants": 16
+      },
+      {
+        "label": "1 > 0 Points",
+        "applicants": 0
+      },
+      {
+        "label": "0 Point",
+        "applicants": 31
+      }
+    ],
+    "prefTagQuota": 13,
+    "randomTagQuota": 12,
+    "totalApplicants": 56,
+    "tags": 25,
+    "weapon": null,
+    "residency": "either",
+    "trend": "unknown",
+    "isSample": false,
+    "source": "user-upload-2025-CA-apprentice-deer"
+  },
+  {
+    "unit": "Zone X7B Apprentice Either-Sex - General Methods (J20)",
+    "tiers": [
+      {
+        "label": "3 Points",
+        "applicants": 2
+      },
+      {
+        "label": "3 > 2 Points",
+        "applicants": 0
+      },
+      {
+        "label": "2 Points",
+        "applicants": 8
+      },
+      {
+        "label": "2 > 1 Points",
+        "applicants": 0
+      },
+      {
+        "label": "1 Point",
+        "applicants": 13
+      },
+      {
+        "label": "1 > 0 Points",
+        "applicants": 0
+      },
+      {
+        "label": "0 Point",
+        "applicants": 25
+      }
+    ],
+    "prefTagQuota": 10,
+    "randomTagQuota": 10,
+    "totalApplicants": 48,
+    "tags": 20,
+    "weapon": null,
+    "residency": "either",
+    "trend": "unknown",
+    "isSample": false,
+    "source": "user-upload-2025-CA-apprentice-deer"
+  },
+  {
+    "unit": "East Tehama Apprentice Either-Sex - General Methods (J21)",
+    "tiers": [
+      {
+        "label": "3 Points",
+        "applicants": 3
+      },
+      {
+        "label": "3 > 2 Points",
+        "applicants": 0
+      },
+      {
+        "label": "2 Points",
+        "applicants": 17
+      },
+      {
+        "label": "2 > 1 Points",
+        "applicants": 0
+      },
+      {
+        "label": "1 Point",
+        "applicants": 35
+      },
+      {
+        "label": "1 > 0 Points",
+        "applicants": 7
+      },
+      {
+        "label": "0 Point",
+        "applicants": 84
+      }
+    ],
+    "prefTagQuota": 25,
+    "randomTagQuota": 25,
+    "totalApplicants": 146,
+    "tags": 50,
+    "weapon": null,
+    "residency": "either",
+    "trend": "unknown",
+    "isSample": false,
+    "source": "user-upload-2025-CA-apprentice-deer"
+  }
+]
+  },
+
 
   // ---- Colorado (preference point system) ----
   CO: {
@@ -1171,11 +1898,77 @@ const DrawEngine = (() => {
   }
 
   /**
+   * Cascading tier-based preference model (e.g. California's distribution
+   * reports). Unlike a single "meets the cutoff" check, this walks every
+   * point tier from highest to lowest, consuming the preference quota as
+   * it goes — so it correctly captures oversubscription *within* a tier,
+   * including at the very top. Verified against a real uploaded CA report:
+   * a hunt code with 45 people at the max 3-point tier competing for only
+   * 8 preference tags computes to 17.8%, not the ~90% a simple
+   * meets/doesn't-meet-cutoff model would have implied.
+   */
+  function cascadingPreferenceOdds({ tiers, prefQuota, randomQuota, totalApplicants, userPoints }){
+    // Match by the leading integer in each tier's label rather than
+    // reconstructing a string like "N Points" — source reports aren't
+    // consistent about pluralization ("3 Points" vs "0 Point" in the same
+    // real report), and fractional/range tiers ("3 > 2 Points") must be
+    // skipped entirely since a whole-number point total never falls inside
+    // one of those ranges.
+    function pureTierPoints(label){
+      const m = /^(\d+)\s*Points?$/i.exec((label || "").trim());
+      return m ? parseInt(m[1], 10) : null;
+    }
+
+    let remaining = prefQuota;
+    for (const t of tiers) {
+      const n = t.applicants;
+      const tierPoints = pureTierPoints(t.label);
+      if (tierPoints === userPoints) {
+        let pct, label;
+        if (n === 0) {
+          pct = 0;
+          label = "No applicants recorded at this tier — check your point value against this report.";
+        } else if (remaining <= 0) {
+          pct = 0;
+          label = `Preference quota (${prefQuota}) was exhausted by higher point tiers before reaching yours.`;
+        } else {
+          pct = Math.min(100, 100 * remaining / n);
+          label = `${remaining} preference tag(s) left when reaching your tier, split among ${n} applicant(s) at this exact point level.`;
+        }
+        if (randomQuota && totalApplicants) {
+          const randomPct = Math.min(100, 100 * randomQuota / totalApplicants);
+          label += ` A separate random round (${randomQuota} tags across all ${totalApplicants} applicants, ~${randomPct.toFixed(1)}%) also applies regardless of this outcome.`;
+        }
+        const tier = pct >= 50 ? "strong" : pct >= 15 ? "moderate" : "long";
+        return { pct: Math.round(pct * 10) / 10, tier, label, model: "preference-cascading" };
+      }
+      remaining -= n;
+      if (remaining < 0) remaining = 0;
+    }
+    return { pct: 0, tier: "long", label: "Your point total wasn't found as its own tier in this report — it may only publish whole-number tiers, or your points exceed what this hunt tracks.", model: "preference-cascading" };
+  }
+
+  /**
    * Scores one hunt-choice record using the right model for the state,
    * pulling squared/hybrid-pool behavior from the state's pointRules.
    */
   function scoreUnit(systemType, userPoints, unit, pointRules){
     const rules = pointRules || {};
+
+    // Tier-distribution records (e.g. parsed from a CA-style report) carry
+    // richer data than a single cutoff — use the cascading model whenever
+    // it's present, regardless of the state's default system type.
+    if (unit.tiers && unit.tiers.length) {
+      const result = cascadingPreferenceOdds({
+        tiers: unit.tiers,
+        prefQuota: unit.prefTagQuota || 0,
+        randomQuota: unit.randomTagQuota || 0,
+        totalApplicants: unit.totalApplicants || 0,
+        userPoints
+      });
+      return { unitName: unit.unit, isSample: !!unit.isSample, weapon: unit.weapon || null, residency: unit.residency || null, ...result };
+    }
+
     let result;
     switch (systemType) {
       case "preference":
@@ -1247,7 +2040,7 @@ const DrawEngine = (() => {
     return list;
   }
 
-  return { preferenceOdds, bonusOdds, lotteryOdds, scoreUnit, recommend, computePointBalance };
+  return { preferenceOdds, bonusOdds, lotteryOdds, cascadingPreferenceOdds, scoreUnit, recommend, computePointBalance };
 })();
 
 
@@ -1678,6 +2471,7 @@ function guessColumnRoles(tableRows) {
       return;
     }
     pdfStatus.textContent = `Reading ${file.name} in your browser…`;
+    document.getElementById("rawDebugPanel").style.display = "none";
 
     try {
       if (typeof pdfjsLib === "undefined") {
@@ -1705,7 +2499,20 @@ function guessColumnRoles(tableRows) {
         });
       }
 
+      const rows = groupIntoRows(allItems, 3);
       const table = extractTable(allItems, { xGapThreshold: 14, yTolerance: 3 });
+
+      const debugPanel = document.getElementById("rawDebugPanel");
+      const debugOut = document.getElementById("rawDebugOutput");
+      const rawLines = rows.map(r => r.items.map(it => it.str).join(" | "));
+      debugOut.textContent =
+        `--- Raw text items grouped by row (${rows.length} rows detected, before column-splitting) ---\n` +
+        rawLines.slice(0, 40).join("\n") +
+        (rawLines.length > 40 ? `\n… (${rawLines.length - 40} more rows)` : "") +
+        `\n\n--- After column-splitting (${table.length} rows kept, single-cell lines dropped) ---\n` +
+        table.slice(0, 20).map(r => JSON.stringify(r)).join("\n");
+      debugPanel.style.display = "block";
+
       if (!table.length) {
         pdfStatus.textContent = "Couldn't find tabular data in that PDF — you can still add rows manually below.";
       } else {
