@@ -639,7 +639,7 @@ footer{
   HUNTER · Built for planning, not guaranteed odds · Always confirm against your state wildlife agency before applying
 </footer>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
 <script>
 
 /* ===== data/states.js ===== */
@@ -1680,9 +1680,13 @@ function guessColumnRoles(tableRows) {
     pdfStatus.textContent = `Reading ${file.name} in your browser…`;
 
     try {
-      if (typeof pdfjsLib !== "undefined") {
-        pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.js";
+      if (typeof pdfjsLib === "undefined") {
+        pdfStatus.textContent = "The PDF reader library didn't load (likely no internet connection, or a network/ad-blocker issue) — you can still add rows manually below.";
+        renderReviewTable([], {});
+        reviewPanel.style.display = "block";
+        return;
       }
+      pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js";
       const buf = await file.arrayBuffer();
       const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
 
