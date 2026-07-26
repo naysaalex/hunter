@@ -380,6 +380,20 @@ section{ padding: 72px 24px; position:relative; }
 }
 .review-remove:hover{ border-color: var(--danger); color: var(--danger); }
 
+.method-chooser{ margin-top: 20px; }
+.method-cards{ display:grid; grid-template-columns: repeat(auto-fit, minmax(260px,1fr)); gap:16px; }
+.method-card{
+  border: 1px solid var(--line); border-radius: var(--radius); padding: 16px;
+  background: var(--bg-raised); cursor: pointer; transition: border-color .15s ease;
+}
+.method-card:hover{ border-color: var(--accent-soft); }
+.method-card h4{ font-family: var(--mono); font-size: 12px; text-transform:uppercase; letter-spacing:.06em; color: var(--sage-bright); margin: 0 0 10px; }
+.method-card pre{
+  font-size: 11px; color: var(--text-dim); white-space: pre-wrap; max-height: 140px; overflow:auto;
+  background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius); padding: 8px; margin: 0 0 12px;
+}
+.method-card .btn{ width: 100%; }
+
 /* ==========================================================================
    STATE TABLE
    ========================================================================== */
@@ -564,6 +578,8 @@ footer{
           <pre id="rawDebugOutput" style="white-space:pre-wrap; font-size:11.5px; color: var(--text-dim); background: var(--bg-raised); border:1px solid var(--line); border-radius: var(--radius); padding:12px; margin-top:8px; max-height:260px; overflow:auto;"></pre>
         </details>
       </div>
+
+      <div id="methodChooser" class="method-chooser" style="display:none;"></div>
 
       <div id="reviewPanel" class="review-panel" style="display:none;">
         <p class="ledger-help">Review what was extracted. Fix anything that looks off, delete stray rows, then save — this becomes real data for this state/species from now on, replacing any sample data.</p>
@@ -2555,6 +2571,8 @@ function extractTableByColumns(items, opts) {
     }
     pdfStatus.textContent = `Reading ${file.name} in your browser…`;
     document.getElementById("rawDebugPanel").style.display = "none";
+    document.getElementById("methodChooser").style.display = "none";
+    document.getElementById("reviewPanel").style.display = "none";
 
     try {
       if (typeof pdfjsLib === "undefined") {
@@ -2591,38 +2609,34 @@ function extractTableByColumns(items, opts) {
       }
 
       const rows = groupIntoRows(allItems, 4);
-      // Real column gaps run 50-80pt in agency reports like this one, vs
-      // ~3-5pt for normal word-spacing -- 20pt sits safely between both,
-      // verified against actual measured coordinates from a real uploaded
-      // file. This method only works reliably once width is scaled
-      // correctly (see the fix above); it was previously swapped out for
-      // column-clustering to work around what turned out to be that
-      // scaling bug, not a flaw in this approach itself.
-      const table = extractTable(allItems, { xGapThreshold: 20, yTolerance: 4 });
-      const columnClusterTable = extractTableByColumns(allItems, { xTolerance: 18, yTolerance: 4 });
+      // Two genuinely different extraction strategies -- real-world testing
+      // across multiple actual uploaded PDFs showed each one wins on
+      // different files (a CA report favored sequential-gap; an Alaska
+      // report favored column-clustering, with the OTHER method collapsing
+      // to garbage in each case). There's no reliable way to auto-detect
+      // which is right for an arbitrary PDF's internal text encoding, so
+      // both are computed and a quick preview lets you pick the one that
+      // actually looks like the real table -- a two-second human judgment
+      // beats a heuristic that's proven to guess wrong on real files.
+      const methodA = extractTable(allItems, { xGapThreshold: 20, yTolerance: 4 });
+      const methodB = extractTableByColumns(allItems, { xTolerance: 18, yTolerance: 4 });
 
+      const rawLines = rows.map(r => r.items.map(it => it.str).join(" | "));
       const debugPanel = document.getElementById("rawDebugPanel");
       const debugOut = document.getElementById("rawDebugOutput");
-      const rawLines = rows.map(r => r.items.map(it => it.str).join(" | "));
       debugOut.textContent =
         `--- Raw text items grouped by row (${rows.length} rows, before column detection) ---\n` +
         rawLines.slice(0, 40).join("\n") +
         (rawLines.length > 40 ? `\n… (${rawLines.length - 40} more rows)` : "") +
-        `\n\n--- Sequential-gap method (used for the review table, ${table.length} rows kept) ---\n` +
-        table.slice(0, 20).map(r => JSON.stringify(r)).join("\n") +
-        `\n\n--- Column-clustering method for comparison (${columnClusterTable.length} rows kept) ---\n` +
-        columnClusterTable.slice(0, 20).map(r => JSON.stringify(r)).join("\n");
+        `\n\n--- Method A: sequential-gap (${methodA.length} rows) ---\n` +
+        methodA.slice(0, 20).map(r => JSON.stringify(r)).join("\n") +
+        `\n\n--- Method B: column-clustering (${methodB.length} rows) ---\n` +
+        methodB.slice(0, 20).map(r => JSON.stringify(r)).join("\n");
       debugPanel.style.display = "block";
 
-      if (!table.length) {
-        pdfStatus.textContent = "Couldn't find tabular data in that PDF — you can still add rows manually below.";
-      } else {
-        pdfStatus.textContent = `Extracted ${table.length} row(s) across ${pdf.numPages} page(s). Review and correct below before saving.`;
-      }
-
-      const roles = guessColumnRoles(table);
-      renderReviewTable(table, roles);
-      reviewPanel.style.display = "block";
+      pdfStatus.textContent = `Extracted text across ${pdf.numPages} page(s) two different ways — pick whichever preview below actually looks like the real table.`;
+      renderMethodChooser(methodA, methodB);
+      reviewPanel.style.display = "none"; // shown once a method is picked
 
     } catch(err){
       pdfStatus.textContent = "Couldn't parse that PDF automatically (" + (err && err.message ? err.message : "unknown error") + "). You can still add rows manually below.";
@@ -2675,6 +2689,42 @@ function extractTableByColumns(items, opts) {
     if (!dataRows.length) addRow({});
 
     document.getElementById("addReviewRow").onclick = ()=> addRow({});
+  }
+
+  function renderMethodChooser(methodA, methodB){
+    const chooser = document.getElementById("methodChooser");
+    const preview = (rows) => rows.slice(0, 6).map(r => r.filter(c=>c).join(" | ")).join("\n") || "(no rows)";
+
+    chooser.innerHTML = `
+      <p class="ledger-help">Two different extraction strategies, since real testing across multiple uploaded files showed no single method works on every PDF. Pick whichever preview below actually looks like the real table — the other rows are junk from headers/labels, not your data.</p>
+      <div class="method-cards">
+        <div class="method-card" id="pickMethodA">
+          <h4>Method A (${methodA.length} rows)</h4>
+          <pre>${preview(methodA)}</pre>
+          <button type="button" class="btn btn-primary">Use this one</button>
+        </div>
+        <div class="method-card" id="pickMethodB">
+          <h4>Method B (${methodB.length} rows)</h4>
+          <pre>${preview(methodB)}</pre>
+          <button type="button" class="btn btn-primary">Use this one</button>
+        </div>
+      </div>
+      <p class="ledger-help" style="margin-top:12px;">Neither look right? You can still <a href="#" id="skipToManual">skip straight to manual entry</a> below.</p>
+    `;
+    chooser.style.display = "block";
+
+    function choose(table){
+      chooser.style.display = "none";
+      const roles = guessColumnRoles(table);
+      renderReviewTable(table, roles);
+      document.getElementById("reviewPanel").style.display = "block";
+    }
+    document.getElementById("pickMethodA").addEventListener("click", ()=> choose(methodA));
+    document.getElementById("pickMethodB").addEventListener("click", ()=> choose(methodB));
+    document.getElementById("skipToManual").addEventListener("click", (e)=>{
+      e.preventDefault();
+      choose([]);
+    });
   }
 
   document.getElementById("saveReviewBtn").addEventListener("click", ()=>{
@@ -2738,7 +2788,7 @@ function extractTableByColumns(items, opts) {
 
   // Exposed for automated testing only (not part of the UX surface).
   if (typeof window !== "undefined") {
-    window.__hunterTestHooks = { renderReviewTable, handlePdfFile, unitsFor, USER_UNIT_DATA_ref: () => USER_UNIT_DATA };
+    window.__hunterTestHooks = { renderReviewTable, handlePdfFile, unitsFor, renderMethodChooser, USER_UNIT_DATA_ref: () => USER_UNIT_DATA };
   }
 
 })();
