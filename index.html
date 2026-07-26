@@ -2128,6 +2128,72 @@ function guessColumnRoles(tableRows) {
   return roles;
 }
 
+/**
+ * ROBUST ALTERNATIVE: column-position clustering.
+ *
+ * splitRowIntoCells() above walks each row left-to-right accumulating a
+ * running "lastRight" position — a single bad width estimate anywhere in
+ * the row throws off every cell after it, and errors compound across wide
+ * tables. This alternative instead finds column positions ONCE using every
+ * item on the page/table, then assigns each row's items to their nearest
+ * global column independently — so one row's estimation noise can't cascade
+ * into the next, and it tolerates a den of the misaligned/wrapped headers
+ * common in real agency PDFs (e.g. multi-line wrapped column headers)
+ * better, since header fragments simply end up sparse/partial rows against
+ * the same fixed column grid rather than desyncing everything after them.
+ */
+function clusterColumnPositions(items, xTolerance) {
+  xTolerance = xTolerance || 15;
+  const xs = items.map(i => i.x).sort((a, b) => a - b);
+  const bins = [];
+  for (const x of xs) {
+    let bin = bins.find(b => Math.abs(b.center - x) <= xTolerance);
+    if (bin) {
+      bin.xs.push(x);
+      bin.center = bin.xs.reduce((a, b) => a + b, 0) / bin.xs.length;
+    } else {
+      bins.push({ center: x, xs: [x] });
+    }
+  }
+  return bins.map(b => b.center).sort((a, b) => a - b);
+}
+
+function assignRowToColumns(rowItems, columnCenters) {
+  const cells = columnCenters.map(() => []);
+  rowItems.forEach(item => {
+    let bestIdx = 0, bestDist = Infinity;
+    columnCenters.forEach((c, i) => {
+      const d = Math.abs(item.x - c);
+      if (d < bestDist) { bestDist = d; bestIdx = i; }
+    });
+    cells[bestIdx].push(item);
+  });
+  return cells.map(group => group.sort((a, b) => a.x - b.x).map(i => i.str).join(" ").trim());
+}
+
+function extractTableByColumns(items, opts) {
+  opts = opts || {};
+  const rows = groupIntoRows(items, opts.yTolerance);
+  const columnCenters = clusterColumnPositions(items, opts.xTolerance);
+  if (!columnCenters.length) return [];
+
+  const rawRows = rows.map(r => assignRowToColumns(r.items, columnCenters));
+
+  // Real data rows in a table tend to populate a consistent number of
+  // columns (the table's actual column count). Header fragments from
+  // wrapped multi-line headers usually populate far fewer — use the most
+  // common non-empty-cell count across all rows as a proxy for "this looks
+  // like a real row" and drop clear outliers rather than including noise.
+  const nonEmptyCounts = rawRows.map(r => r.filter(c => c.length > 0).length);
+  const freq = {};
+  nonEmptyCounts.forEach(c => { freq[c] = (freq[c] || 0) + 1; });
+  let modeCount = nonEmptyCounts[0] || 0;
+  Object.keys(freq).forEach(k => { if (freq[k] > (freq[modeCount] || 0)) modeCount = parseInt(k, 10); });
+
+  const threshold = Math.max(2, Math.floor(modeCount * 0.6));
+  return rawRows.filter((r, i) => nonEmptyCounts[i] >= threshold);
+}
+
 
 /* ===== app.js ===== */
 (function(){
@@ -2327,6 +2393,23 @@ function guessColumnRoles(tableRows) {
       return;
     }
 
+    // Tier-based (cascading) data only tracks whatever point range the
+    // source report published — warn up front instead of letting every
+    // single unit show a confusing "tier not found" message.
+    const tierUnits = units.filter(u => u.tiers && u.tiers.length);
+    if (tierUnits.length) {
+      const allPoints = [];
+      tierUnits.forEach(u => u.tiers.forEach(t => {
+        const m = /^(\d+)\s*Points?$/i.exec((t.label||"").trim());
+        if (m) allPoints.push(parseInt(m[1], 10));
+      }));
+      const maxTracked = allPoints.length ? Math.max(...allPoints) : null;
+      if (maxTracked != null && points > maxTracked) {
+        resultsEl.innerHTML = `<div class="empty-state">This report only tracks point values up to ${maxTracked} for ${s.name} · ${species} — your input of ${points} is outside what it published (some hunt categories, like apprentice/youth hunts, cap points well below the general draw). Try ${maxTracked} or lower, or check whether this is the right report for your point type.</div>`;
+        return;
+      }
+    }
+
     const ranked = DrawEngine.recommend({
       userPoints: points,
       systemType: s.system,
@@ -2499,18 +2582,21 @@ function guessColumnRoles(tableRows) {
         });
       }
 
-      const rows = groupIntoRows(allItems, 3);
-      const table = extractTable(allItems, { xGapThreshold: 14, yTolerance: 3 });
+      const rows = groupIntoRows(allItems, 4);
+      const table = extractTableByColumns(allItems, { xTolerance: 18, yTolerance: 4 });
+      const oldMethodTable = extractTable(allItems, { xGapThreshold: 14, yTolerance: 4 });
 
       const debugPanel = document.getElementById("rawDebugPanel");
       const debugOut = document.getElementById("rawDebugOutput");
       const rawLines = rows.map(r => r.items.map(it => it.str).join(" | "));
       debugOut.textContent =
-        `--- Raw text items grouped by row (${rows.length} rows detected, before column-splitting) ---\n` +
+        `--- Raw text items grouped by row (${rows.length} rows, before column detection) ---\n` +
         rawLines.slice(0, 40).join("\n") +
         (rawLines.length > 40 ? `\n… (${rawLines.length - 40} more rows)` : "") +
-        `\n\n--- After column-splitting (${table.length} rows kept, single-cell lines dropped) ---\n` +
-        table.slice(0, 20).map(r => JSON.stringify(r)).join("\n");
+        `\n\n--- Column-clustering method (used for the review table, ${table.length} rows kept) ---\n` +
+        table.slice(0, 20).map(r => JSON.stringify(r)).join("\n") +
+        `\n\n--- Sequential-gap method for comparison (${oldMethodTable.length} rows kept) ---\n` +
+        oldMethodTable.slice(0, 20).map(r => JSON.stringify(r)).join("\n");
       debugPanel.style.display = "block";
 
       if (!table.length) {
