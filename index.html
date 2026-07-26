@@ -394,6 +394,19 @@ section{ padding: 72px 24px; position:relative; }
 }
 .method-card .btn{ width: 100%; }
 
+.mapper-table-wrap{ overflow-x:auto; margin-bottom: 16px; }
+.mapper-table{ border-collapse: collapse; font-size: 12px; white-space: nowrap; }
+.mapper-table th, .mapper-table td{ border: 1px solid var(--line); padding: 6px 8px; text-align:left; }
+.mapper-table th{ font-family: var(--mono); color: var(--text-dim); background: var(--surface-2); }
+.mapper-table td{ color: var(--text-dim); max-width: 160px; overflow:hidden; text-overflow:ellipsis; }
+.mapper-selects{ display:grid; grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); gap: 12px; }
+.mapper-selects .field label{ font-size: 10.5px; }
+.save-success{
+  border-left: 3px solid var(--good); background: var(--surface); color: var(--text);
+  padding: 16px 20px; border-radius: 0 var(--radius) var(--radius) 0; margin-top: 14px;
+}
+.save-success a.btn{ display:inline-block; text-decoration:none; margin-top:10px; }
+
 /* ==========================================================================
    STATE TABLE
    ========================================================================== */
@@ -580,6 +593,8 @@ footer{
       </div>
 
       <div id="methodChooser" class="method-chooser" style="display:none;"></div>
+
+      <div id="columnMapper" class="method-chooser" style="display:none;"></div>
 
       <div id="reviewPanel" class="review-panel" style="display:none;">
         <p class="ledger-help">Review what was extracted. Fix anything that looks off, delete stray rows, then save — this becomes real data for this state/species from now on, replacing any sample data.</p>
@@ -2572,12 +2587,13 @@ function extractTableByColumns(items, opts) {
     pdfStatus.textContent = `Reading ${file.name} in your browser…`;
     document.getElementById("rawDebugPanel").style.display = "none";
     document.getElementById("methodChooser").style.display = "none";
+    document.getElementById("columnMapper").style.display = "none";
     document.getElementById("reviewPanel").style.display = "none";
 
     try {
       if (typeof pdfjsLib === "undefined") {
         pdfStatus.textContent = "The PDF reader library didn't load (likely no internet connection, or a network/ad-blocker issue) — you can still add rows manually below.";
-        renderReviewTable([], {});
+        renderReviewTable([]);
         reviewPanel.style.display = "block";
         return;
       }
@@ -2640,13 +2656,12 @@ function extractTableByColumns(items, opts) {
 
     } catch(err){
       pdfStatus.textContent = "Couldn't parse that PDF automatically (" + (err && err.message ? err.message : "unknown error") + "). You can still add rows manually below.";
-      renderReviewTable([], {});
+      renderReviewTable([]);
       reviewPanel.style.display = "block";
     }
   }
 
-  function renderReviewTable(table, roles){
-    const dataRows = table.length ? table.slice(table[0] && Object.keys(roles).length ? 1 : 0) : [];
+  function renderReviewTable(mappedRows){
     reviewTable.innerHTML = `
       <thead><tr>
         <th>Unit / Hunt Code</th><th>Tags</th><th>Applicants</th><th>Min Points Last Yr</th><th>Residency</th><th></th>
@@ -2676,17 +2691,8 @@ function extractTableByColumns(items, opts) {
       body.appendChild(tr);
     }
 
-    dataRows.forEach(cells=>{
-      addRow({
-        unit: roles.unit != null ? cells[roles.unit] : cells[0],
-        tags: roles.tags != null ? cells[roles.tags] : "",
-        applicants: roles.applicants != null ? cells[roles.applicants] : "",
-        minPoints: roles.minPoints != null ? cells[roles.minPoints] : "",
-        residency: roles.residency != null ? (cells[roles.residency]||"").toLowerCase() : "either"
-      });
-    });
-
-    if (!dataRows.length) addRow({});
+    (mappedRows || []).forEach(r => addRow(r));
+    if (!mappedRows || !mappedRows.length) addRow({});
 
     document.getElementById("addReviewRow").onclick = ()=> addRow({});
   }
@@ -2715,17 +2721,113 @@ function extractTableByColumns(items, opts) {
 
     function choose(table){
       chooser.style.display = "none";
-      const roles = guessColumnRoles(table);
-      renderReviewTable(table, roles);
-      document.getElementById("reviewPanel").style.display = "block";
+      renderColumnMapper(table);
     }
     document.getElementById("pickMethodA").addEventListener("click", ()=> choose(methodA));
     document.getElementById("pickMethodB").addEventListener("click", ()=> choose(methodB));
     document.getElementById("skipToManual").addEventListener("click", (e)=>{
       e.preventDefault();
-      choose([]);
+      chooser.style.display = "none";
+      renderReviewTable([]);
+      document.getElementById("reviewPanel").style.display = "block";
     });
   }
+
+  const FIELD_OPTIONS = [
+    { value: "ignore", label: "Ignore this column" },
+    { value: "unit", label: "Unit / Hunt Code" },
+    { value: "unit_append", label: "Unit / Hunt Code (add to it)" },
+    { value: "tags", label: "Tags / Quota" },
+    { value: "applicants", label: "Applicants" },
+    { value: "minPoints", label: "Min Points Last Yr" },
+    { value: "residency", label: "Residency" }
+  ];
+
+  function renderColumnMapper(table){
+    const mapper = document.getElementById("columnMapper");
+    const maxCols = table.reduce((m, r) => Math.max(m, r.length), 0);
+    if (!maxCols) {
+      mapper.style.display = "none";
+      renderReviewTable([]);
+      document.getElementById("reviewPanel").style.display = "block";
+      return;
+    }
+    const sampleRows = table.slice(0, 5);
+
+    let html = `<p class="ledger-help">Tell Hunter what each column actually is, using the sample rows below as a guide — this replaces automatic guessing, which is what's been going wrong.</p>`;
+    html += `<div class="mapper-table-wrap"><table class="mapper-table"><thead><tr>`;
+    for (let c = 0; c < maxCols; c++) html += `<th>Col ${c+1}</th>`;
+    html += `</tr></thead><tbody>`;
+    sampleRows.forEach(row=>{
+      html += "<tr>" + Array.from({length: maxCols}, (_, c) => `<td>${(row[c]||"").toString().slice(0,28)}</td>`).join("") + "</tr>";
+    });
+    html += `</tbody></table></div>`;
+
+    html += `<div class="mapper-selects">`;
+    for (let c = 0; c < maxCols; c++) {
+      html += `<div class="field"><label>Col ${c+1}</label><select class="mapper-select" data-col="${c}">` +
+        FIELD_OPTIONS.map(o=>`<option value="${o.value}">${o.label}</option>`).join("") +
+        `</select></div>`;
+    }
+    html += `</div>`;
+    html += `<button type="button" class="btn btn-primary" id="applyMappingBtn" style="margin-top:16px;">Build review table</button>`;
+
+    mapper.innerHTML = html;
+    mapper.style.display = "block";
+
+    document.getElementById("applyMappingBtn").addEventListener("click", ()=>{
+      const selects = mapper.querySelectorAll(".mapper-select");
+      const mapping = {};
+      selects.forEach(sel=>{
+        const col = parseInt(sel.dataset.col, 10);
+        const field = sel.value;
+        if (field === "ignore") return;
+        mapping[field] = mapping[field] || [];
+        mapping[field].push(col);
+      });
+
+      const numericFields = ["tags","applicants","minPoints"].filter(f => mapping[f]);
+      const getFirst = (row, field) => {
+        for (const c of (mapping[field]||[])) {
+          const v = row[c];
+          if (v) return v;
+        }
+        return "";
+      };
+
+      const outRows = [];
+      table.forEach(row=>{
+        const unitParts = (mapping.unit||[]).map(c=>row[c]).filter(Boolean);
+        (mapping.unit_append||[]).forEach(c=>{ if (row[c]) unitParts.push(row[c]); });
+        const unit = unitParts.join(" ").trim();
+
+        const tags = getFirst(row, "tags");
+        const applicants = getFirst(row, "applicants");
+        const minPoints = getFirst(row, "minPoints");
+        const residency = (getFirst(row, "residency") || "").toLowerCase();
+
+        // Rows that don't parse as real data (header/label rows) are
+        // dropped automatically: if any numeric field was mapped, at least
+        // one of them must actually contain a digit for this row to count.
+        const hasNumeric = numericFields.some(f => /\d/.test(getFirst(row, f) || ""));
+        if (!unit && !hasNumeric) return;
+        if (numericFields.length && !hasNumeric) return;
+
+        outRows.push({
+          unit,
+          tags: (tags.match(/[\d,]+/)||[""])[0].replace(/,/g,""),
+          applicants: (applicants.match(/[\d,]+/)||[""])[0].replace(/,/g,""),
+          minPoints: (minPoints.match(/\d+/)||[""])[0],
+          residency: residency.includes("non") ? "nonresident" : residency.includes("res") ? "resident" : "either"
+        });
+      });
+
+      mapper.style.display = "none";
+      renderReviewTable(outRows);
+      document.getElementById("reviewPanel").style.display = "block";
+    });
+  }
+
 
   document.getElementById("saveReviewBtn").addEventListener("click", ()=>{
     const state = reqState.value, species = reqSpecies.value;
@@ -2741,20 +2843,35 @@ function extractTableByColumns(items, opts) {
     })).filter(r => r.unit);
 
     if (!rows.length){
-      reviewSaveStatus.textContent = "Add at least one row with a unit name before saving.";
+      reviewSaveStatus.innerHTML = "Add at least one row with a unit name before saving.";
       return;
     }
 
     USER_UNIT_DATA[state] = USER_UNIT_DATA[state] || {};
     USER_UNIT_DATA[state][species] = rows;
     saveUserUnitData(USER_UNIT_DATA);
-
-    reviewSaveStatus.textContent = PERSISTENCE_AVAILABLE
-      ? `Saved ${rows.length} unit(s) for ${stateByCode[state].name} · ${species}. This now replaces sample data in the calculator above, and will still be here next time you open this file.`
-      : `Added ${rows.length} unit(s) for ${stateByCode[state].name} · ${species} for this session only — your browser is blocking saved storage for a file opened this way (common for file:// pages), so this will reset if you reload or close the tab. Serving the file over a local web server instead of double-clicking it avoids this.`;
     renderUserDataNotice();
 
-    // If the main calculator is currently showing this exact state/species, refresh it
+    const persistNote = PERSISTENCE_AVAILABLE
+      ? "This will still be here next time you open this file."
+      : "This is session-only — your browser is blocking saved storage for a file opened this way (common for file:// pages), so it will reset if you reload or close the tab. Serving the file over a local web server instead of double-clicking it avoids this.";
+
+    reviewSaveStatus.innerHTML = `
+      <div class="save-success">
+        <strong>Saved ${rows.length} unit(s) for ${stateByCode[state].name} · ${species}.</strong>
+        This replaces sample data in the calculator above. ${persistNote}
+        <br><a href="#calculator" class="btn btn-primary" id="jumpToCalcBtn">See my odds in the calculator &darr;</a>
+      </div>
+    `;
+
+    document.getElementById("jumpToCalcBtn").addEventListener("click", ()=>{
+      stateSelect.value = state;
+      refreshSpeciesOptions();
+      speciesSelect.value = species;
+      runCalculation();
+    });
+
+    // If the main calculator is already showing this exact state/species, refresh it immediately too
     if (stateSelect.value === state && speciesSelect.value === species) runCalculation();
   });
 
@@ -2788,7 +2905,7 @@ function extractTableByColumns(items, opts) {
 
   // Exposed for automated testing only (not part of the UX surface).
   if (typeof window !== "undefined") {
-    window.__hunterTestHooks = { renderReviewTable, handlePdfFile, unitsFor, renderMethodChooser, USER_UNIT_DATA_ref: () => USER_UNIT_DATA };
+    window.__hunterTestHooks = { renderReviewTable, handlePdfFile, unitsFor, renderMethodChooser, renderColumnMapper, USER_UNIT_DATA_ref: () => USER_UNIT_DATA };
   }
 
 })();
