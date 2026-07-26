@@ -2225,6 +2225,33 @@ function extractTableByColumns(items, opts) {
   return rawRows.filter((r, i) => nonEmptyCounts[i] >= threshold);
 }
 
+/**
+ * METHOD C: positional token order.
+ *
+ * Neither sequential-gap nor column-clustering assume anything about
+ * consistent x-alignment across rows -- and real testing found a report
+ * (browser-print-to-PDF government tables) where even a single row's
+ * numbers land at different x-positions than the same column in other
+ * rows (e.g. a 1-digit number vs a 3-digit number in what's visually the
+ * same column). Both x-based methods break there.
+ *
+ * This method makes no assumption about x-position at all: it drops
+ * whitespace-only fragments and keeps every remaining real token as its
+ * own cell, in left-to-right reading order. It only works cleanly when
+ * each row has a consistent, fixed number of single-token fields (no
+ * multi-word cells to merge) -- true for many browser-rendered stats
+ * tables, false for reports with free-text description columns (those
+ * need sequential-gap or column-clustering instead). Offered as a third
+ * option precisely because none of the three is universal.
+ */
+function extractByTokenOrder(items, opts) {
+  opts = opts || {};
+  const rows = groupIntoRows(items, opts.yTolerance);
+  return rows
+    .map(r => r.items.map(it => it.str).filter(s => s && s.trim().length > 0))
+    .filter(cells => cells.length > 1);
+}
+
 
 /* ===== app.js ===== */
 (function(){
@@ -2636,6 +2663,7 @@ function extractTableByColumns(items, opts) {
       // beats a heuristic that's proven to guess wrong on real files.
       const methodA = extractTable(allItems, { xGapThreshold: 20, yTolerance: 4 });
       const methodB = extractTableByColumns(allItems, { xTolerance: 18, yTolerance: 4 });
+      const methodC = extractByTokenOrder(allItems, { yTolerance: 4 });
 
       const rawLines = rows.map(r => r.items.map(it => it.str).join(" | "));
       const debugPanel = document.getElementById("rawDebugPanel");
@@ -2647,11 +2675,13 @@ function extractTableByColumns(items, opts) {
         `\n\n--- Method A: sequential-gap (${methodA.length} rows) ---\n` +
         methodA.slice(0, 20).map(r => JSON.stringify(r)).join("\n") +
         `\n\n--- Method B: column-clustering (${methodB.length} rows) ---\n` +
-        methodB.slice(0, 20).map(r => JSON.stringify(r)).join("\n");
+        methodB.slice(0, 20).map(r => JSON.stringify(r)).join("\n") +
+        `\n\n--- Method C: token order (${methodC.length} rows) ---\n` +
+        methodC.slice(0, 20).map(r => JSON.stringify(r)).join("\n");
       debugPanel.style.display = "block";
 
-      pdfStatus.textContent = `Extracted text across ${pdf.numPages} page(s) two different ways — pick whichever preview below actually looks like the real table.`;
-      renderMethodChooser(methodA, methodB);
+      pdfStatus.textContent = `Extracted text across ${pdf.numPages} page(s) three different ways — pick whichever preview below actually looks like the real table.`;
+      renderMethodChooser(methodA, methodB, methodC);
       reviewPanel.style.display = "none"; // shown once a method is picked
 
     } catch(err){
@@ -2697,25 +2727,30 @@ function extractTableByColumns(items, opts) {
     document.getElementById("addReviewRow").onclick = ()=> addRow({});
   }
 
-  function renderMethodChooser(methodA, methodB){
+  function renderMethodChooser(methodA, methodB, methodC){
     const chooser = document.getElementById("methodChooser");
     const preview = (rows) => rows.slice(0, 6).map(r => r.filter(c=>c).join(" | ")).join("\n") || "(no rows)";
 
     chooser.innerHTML = `
-      <p class="ledger-help">Two different extraction strategies, since real testing across multiple uploaded files showed no single method works on every PDF. Pick whichever preview below actually looks like the real table — the other rows are junk from headers/labels, not your data.</p>
+      <p class="ledger-help">Three different extraction strategies, since real testing across multiple uploaded files showed no single method works on every PDF — some break on free-text columns, others break on inconsistent number alignment. Pick whichever preview below actually looks like the real table, row by row — the other options are junk from headers/labels or misaligned columns, not your data.</p>
       <div class="method-cards">
         <div class="method-card" id="pickMethodA">
-          <h4>Method A (${methodA.length} rows)</h4>
+          <h4>Method A: sequential-gap (${methodA.length} rows)</h4>
           <pre>${preview(methodA)}</pre>
           <button type="button" class="btn btn-primary">Use this one</button>
         </div>
         <div class="method-card" id="pickMethodB">
-          <h4>Method B (${methodB.length} rows)</h4>
+          <h4>Method B: column-clustering (${methodB.length} rows)</h4>
           <pre>${preview(methodB)}</pre>
           <button type="button" class="btn btn-primary">Use this one</button>
         </div>
+        <div class="method-card" id="pickMethodC">
+          <h4>Method C: token order (${methodC.length} rows)</h4>
+          <pre>${preview(methodC)}</pre>
+          <button type="button" class="btn btn-primary">Use this one</button>
+        </div>
       </div>
-      <p class="ledger-help" style="margin-top:12px;">Neither look right? You can still <a href="#" id="skipToManual">skip straight to manual entry</a> below.</p>
+      <p class="ledger-help" style="margin-top:12px;">None look right? You can still <a href="#" id="skipToManual">skip straight to manual entry</a> below.</p>
     `;
     chooser.style.display = "block";
 
@@ -2725,6 +2760,7 @@ function extractTableByColumns(items, opts) {
     }
     document.getElementById("pickMethodA").addEventListener("click", ()=> choose(methodA));
     document.getElementById("pickMethodB").addEventListener("click", ()=> choose(methodB));
+    document.getElementById("pickMethodC").addEventListener("click", ()=> choose(methodC));
     document.getElementById("skipToManual").addEventListener("click", (e)=>{
       e.preventDefault();
       chooser.style.display = "none";
