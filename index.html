@@ -2573,18 +2573,33 @@ function extractTableByColumns(items, opts) {
         const content = await page.getTextContent();
         const viewport = page.getViewport({ scale: 1 });
         content.items.forEach(item=>{
+          // pdf.js's TextItem.width is in the item's own text space, not
+          // page space -- it must be scaled by the horizontal component of
+          // the transform matrix (transform[0]) to be comparable to x/y,
+          // which are already in page space. Using it raw silently shrinks
+          // width for any non-1.0 horizontal scale, which throws off every
+          // gap calculation downstream and was the real cause of the
+          // description column getting shredded into spurious fragments.
+          const hScale = item.transform && item.transform[0] ? item.transform[0] : 1;
           allItems.push({
             str: item.str,
             x: item.transform[4],
             y: item.transform[5] + (p - 1) * (viewport.height + 40), // offset so pages don't collide in y-space
-            width: item.width
+            width: (item.width || 0) * hScale
           });
         });
       }
 
       const rows = groupIntoRows(allItems, 4);
-      const table = extractTableByColumns(allItems, { xTolerance: 18, yTolerance: 4 });
-      const oldMethodTable = extractTable(allItems, { xGapThreshold: 14, yTolerance: 4 });
+      // Real column gaps run 50-80pt in agency reports like this one, vs
+      // ~3-5pt for normal word-spacing -- 20pt sits safely between both,
+      // verified against actual measured coordinates from a real uploaded
+      // file. This method only works reliably once width is scaled
+      // correctly (see the fix above); it was previously swapped out for
+      // column-clustering to work around what turned out to be that
+      // scaling bug, not a flaw in this approach itself.
+      const table = extractTable(allItems, { xGapThreshold: 20, yTolerance: 4 });
+      const columnClusterTable = extractTableByColumns(allItems, { xTolerance: 18, yTolerance: 4 });
 
       const debugPanel = document.getElementById("rawDebugPanel");
       const debugOut = document.getElementById("rawDebugOutput");
@@ -2593,10 +2608,10 @@ function extractTableByColumns(items, opts) {
         `--- Raw text items grouped by row (${rows.length} rows, before column detection) ---\n` +
         rawLines.slice(0, 40).join("\n") +
         (rawLines.length > 40 ? `\n… (${rawLines.length - 40} more rows)` : "") +
-        `\n\n--- Column-clustering method (used for the review table, ${table.length} rows kept) ---\n` +
+        `\n\n--- Sequential-gap method (used for the review table, ${table.length} rows kept) ---\n` +
         table.slice(0, 20).map(r => JSON.stringify(r)).join("\n") +
-        `\n\n--- Sequential-gap method for comparison (${oldMethodTable.length} rows kept) ---\n` +
-        oldMethodTable.slice(0, 20).map(r => JSON.stringify(r)).join("\n");
+        `\n\n--- Column-clustering method for comparison (${columnClusterTable.length} rows kept) ---\n` +
+        columnClusterTable.slice(0, 20).map(r => JSON.stringify(r)).join("\n");
       debugPanel.style.display = "block";
 
       if (!table.length) {
