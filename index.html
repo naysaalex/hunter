@@ -2063,8 +2063,14 @@ const DrawEngine = (() => {
    */
   function recommend({ userPoints, systemType, units, pointRules, weapon, residency }) {
     let pool = units || [];
-    if (weapon && weapon !== "any") pool = pool.filter(u => !u.weapon || u.weapon === weapon);
-    if (residency && residency !== "any") pool = pool.filter(u => !u.residency || u.residency === "either" || u.residency === residency);
+    // Previously untagged units silently passed through any weapon/residency
+    // filter (`!u.weapon ||`), which made a specific selection look like it
+    // was filtering when it was actually doing nothing for most states. Now
+    // a specific choice only matches units explicitly tagged that way --
+    // "either" still legitimately matches both residencies, since that's a
+    // real, meaningful tag (not a missing one).
+    if (weapon && weapon !== "any") pool = pool.filter(u => u.weapon === weapon);
+    if (residency && residency !== "any") pool = pool.filter(u => u.residency === "either" || u.residency === residency);
 
     const list = pool.map(u => scoreUnit(systemType, userPoints, u, pointRules));
     list.sort((a, b) => b.pct - a.pct);
@@ -2423,13 +2429,25 @@ function extractByTokenOrder(items, opts) {
 
   /* ---------------- Weapon / residency filter options ---------------- */
   function refreshFilterOptions(){
-    const code = stateSelect.value, species = speciesSelect.value;
-    const { units } = unitsFor(code, species);
-    const weapons = Array.from(new Set(units.map(u=>u.weapon).filter(Boolean)));
-    const residencies = Array.from(new Set(units.map(u=>u.residency).filter(Boolean)));
-
-    weaponSelect.innerHTML = `<option value="any">Any</option>` + weapons.map(w=>`<option value="${w}">${w[0].toUpperCase()+w.slice(1)}</option>`).join("");
-    residencySelect.innerHTML = `<option value="any">Any</option>` + residencies.filter(r=>r!=="either").map(r=>`<option value="${r}">${r[0].toUpperCase()+r.slice(1)}</option>`).join("");
+    // Static, always-present options -- previously these were derived from
+    // whatever unit data happened to be loaded for the current state/species,
+    // which meant they silently vanished for the 44 states with no data at
+    // all, or for species where no record happened to have a weapon/residency
+    // tag. That was confusing and inconsistent. Now the choices are always
+    // the same; what changes is whether the filter actually excludes
+    // anything (see recommend() in the engine -- a specific selection now
+    // only matches units explicitly tagged that way, no silent pass-through).
+    weaponSelect.innerHTML = `
+      <option value="any">Any</option>
+      <option value="rifle">Rifle</option>
+      <option value="archery">Archery</option>
+      <option value="muzzleloader">Muzzleloader</option>
+    `;
+    residencySelect.innerHTML = `
+      <option value="any">Any</option>
+      <option value="resident">Resident</option>
+      <option value="nonresident">Nonresident</option>
+    `;
   }
 
   /* ---------------- Calculate + render permit-tag results ---------------- */
@@ -2442,7 +2460,6 @@ function extractByTokenOrder(items, opts) {
     const species = speciesSelect.value;
     const points = Math.max(0, parseInt(pointsInput.value || "0", 10));
     const s = stateByCode[code];
-    refreshFilterOptions();
 
     const { units, isUserData } = unitsFor(code, species);
 
